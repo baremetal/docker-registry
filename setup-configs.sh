@@ -17,3 +17,6 @@ if [ "$SETTINGS_FLAVOR" = "prod" ] ; then
     config=${config//s3_secure: REPLACEME/s3_secure: ${S3_SECURE:-False}};
     printf '%s\n' "$config" >config/config.yml
 fi
+
+# replace the storage_path with a non-tmp directory
+sed -i -e 's,storage_path: /tmp/test,storage_path: /srv/docker-registry,'
