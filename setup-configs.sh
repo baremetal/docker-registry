@@ -19,4 +19,4 @@ if [ "$SETTINGS_FLAVOR" = "prod" ] ; then
 fi
 
 # replace the storage_path with a non-tmp directory
-sed -i -e 's,storage_path: /tmp/test,storage_path: /srv/docker-registry,'
+sed -i -e 's,storage_path: /tmp/registry,storage_path: /srv/docker-registry,' config/config.yml
