@@ -10,6 +10,8 @@ RUN cp --no-clobber /docker-registry/config/config_sample.yml /docker-registry/c
 
 EXPOSE 5000
 
+ENV FAILOVER_VOLUMES /srv/docker-registry
+
 VOLUME /srv/docker-registry
 
 CMD cd /docker-registry && ./setup-configs.sh && ./run.sh
