@@ -1,4 +1,3 @@
-
 import flask
 import logging
 
@@ -6,7 +5,7 @@ import config
 import toolkit
 
 
-VERSION = '0.6.2'
+VERSION = '0.6.3'
 app = flask.Flask('docker-registry')
 cfg = config.load()
 loglevel = getattr(logging, cfg.get('loglevel', 'INFO').upper())
@@ -43,15 +42,39 @@ def init():
     # Configure the email exceptions
     info = cfg.email_exceptions
     if info:
+        mailhost = info['smtp_host']
+        mailport = info.get('smtp_port')
+        if mailport:
+            mailhost = (mailhost, mailport)
+        smtp_secure = info.get('smtp_secure', None)
+        secure_args = _adapt_smtp_secure(smtp_secure)
         mail_handler = logging.handlers.SMTPHandler(
-            mailhost=info['smtp_host'],
+            mailhost=mailhost,
             fromaddr=info['from_addr'],
             toaddrs=[info['to_addr']],
             subject='Docker registry exception',
             credentials=(info['smtp_login'],
-                         info['smtp_password']))
+                         info['smtp_password']),
+            secure=secure_args)
         mail_handler.setLevel(logging.ERROR)
         app.logger.addHandler(mail_handler)
+
+
+def _adapt_smtp_secure(value):
+    """Adapt the value to arguments of ``SMTP.starttls()``
+
+    .. seealso:: <http://docs.python.org/2/library/smtplib.html\
+#smtplib.SMTP.starttls>
+
+    """
+    if isinstance(value, basestring):
+        # a string - wrap it in the tuple
+        return (value,)
+    if isinstance(value, dict):
+        assert set(value.keys()) <= set(['keyfile', 'certfile'])
+        return (value['keyfile'], value.get('certfile', None))
+    if value:
+        return ()
 
 
 init()

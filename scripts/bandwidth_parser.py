@@ -75,7 +75,7 @@ def compute_bandwidth(str_end_time, str_start_time, str_layer_size):
     delta = end_time - start_time
     num_seconds = delta.total_seconds()
     bandwidth = 0.0
-    if num_seconds:
+    if num_seconds and layer_size_kb > 100:
         bandwidth = layer_size_kb / num_seconds  # Kilobits-per-second (KB/s)
     return bandwidth
 
@@ -122,6 +122,7 @@ def save_last_line_parsed(time):
         return
     key = cache_key(control_cache_key)
     redis_conn.set(key, time)
+    logger.info('Last time saved: {0}'.format(time))
 
 
 def get_last_line_parsed():
@@ -180,8 +181,10 @@ def generate_bandwidth_data(start_time, min_time, time_interval):
     items = 1
     parsed_data = read_file(sys.argv[1])
     last_time_parsed = get_last_line_parsed()
+    most_recent_parsing = None
     if last_time_parsed:
         last_time_parsed = convert_str_to_datetime(last_time_parsed)
+        logger.info('Last time parsed: {0}'.format(last_time_parsed))
     for item in parsed_data:
         str_start_time, str_end_time, str_layer_size, key = parse_data(item)
         if str_end_time:
@@ -194,18 +197,22 @@ def generate_bandwidth_data(start_time, min_time, time_interval):
         if bandwidth:
             end_time = convert_str_to_datetime(str_end_time)
             if last_time_parsed:
-                if last_time_parsed < end_time:
-                    continue
+                if last_time_parsed >= end_time:
+                    logger.info('Remaining data parsed already. Stopping...')
+                    break
             if end_time < min_time:
+                logger.info('Minimum date reached. Stopping...')
                 break
             if items >= total_items:
+                logger.info('Maximum number of elements reached. Stopping...')
                 break
             if time_interval > end_time:
                 if bandwidth_items.get(time_interval, 0):
                     save_bandwidth(bandwidth_items,
                                    time_interval,
                                    num_items)
-                    save_last_line_parsed(str_end_time)
+                    if not most_recent_parsing:
+                        most_recent_parsing = str_end_time
                     time_interval, items = \
                         update_current_interval(items,
                                                 logging_interval,
@@ -221,6 +228,8 @@ def generate_bandwidth_data(start_time, min_time, time_interval):
             num_items[time_interval] = \
                 num_items.get(time_interval, 0.0) + 1
             end_times.pop(key, None)
+    if most_recent_parsing:
+        save_last_line_parsed(most_recent_parsing)
 
 
 def run():
